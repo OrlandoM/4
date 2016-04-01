@@ -16,7 +16,7 @@
 /* ------------------------------------------------------- */
 
 #define KEYWORDS  11
-#define strdup _strdup
+//#define strdup _strdup
 
 typedef enum
 {
@@ -497,25 +497,146 @@ struct switch_stmtNode* switch_stmt()
 
 struct while_stmtNode* do_stmt()
 {
-    // TODO: implement this
+	struct while_stmtNode* doo;
+		
+	t_type = getToken();
+	if (t_type == DO){
+		doo = ALLOC(struct while_stmtNode);
+		doo->body = body();
+		t_type = getToken();
+		if (t_type == WHILE){
+			doo->condition = condition();
+			t_type = getToken();
+			if (t_type == SEMICOLON){
+				return doo;
+			}
+			else{
+				syntax_error("do_stmt. SEMICOLON expected");
+			}
+		}
+		else{
+			syntax_error("do_stmt. WHILE expected");
+		}
+	}
+	else {
+		syntax_error("do_stmt. DO expected");
+	}
     return NULL;
 }
 
 struct primaryNode* primary()
 {
-    // TODO: implement this
+	struct primaryNode* prim;
+	prim = ALLOC(struct primaryNode);
+
+	t_type = getToken();
+	if (t_type == ID){
+		prim->tag = ID;
+		prim->id = strdup(token);
+		return prim;
+	}
+	else if (t_type == NUM){
+		prim->tag = NUM;
+		prim->ival = atoi(token);
+		return prim;
+	}
+	else if (t_type == REALNUM){
+		prim->tag = REALNUM;
+		prim->fval = atof(token);
+		return prim;
+	}
+	else{
+		syntax_error("primary. ID, NUM, REALNUM expected");
+	}
     return NULL;
 }
 
+/*struct relopNode* relop() {
+	struct relopNode* rel;
+	rel = ALLOC(struct relopNode);
+	t_type = getToken();
+	if (t_type == GREATER){
+		rel->type = GREATER;
+		return rel;
+	}
+	else if (t_type == GTEQ){
+		rel->type = GTEQ;
+		return rel;
+	}
+	else if (t_type == LESS){
+		rel->type = LESS;
+		return rel;
+	}
+	else if (t_type == NOTEQUAL){
+		rel->type = NOTEQUAL;
+		return rel;
+	}
+	else if (t_type == LTEQ){
+		rel->type = LTEQ;
+		return rel;
+	}
+	else {
+		syntax_error("relop. GREATER, GTEQ, LESS, NOTEQUAL, or LTEQ expected");
+	}
+	return NULL;
+}*/
+
 struct conditionNode* condition()
 {
-    // TODO: implement this
+	struct conditionNode* con;
+
+	con = ALLOC(struct conditionNode);
+	t_type = getToken();
+	if (t_type == ID){
+		con->left_operand->tag = ID;
+		con->left_operand->id = strdup(token);
+		t_type = getToken();
+		if (t_type == SEMICOLON || t_type == LBRACE){
+			ungetToken();
+			con->right_operand = NULL;
+			return con;
+		}
+		else if (t_type == GREATER || t_type == GTEQ || t_type == LESS
+			|| t_type == NOTEQUAL || t_type == LTEQ){
+			con->relop = t_type;
+			con->right_operand = primary();
+			return con;
+		}
+		else{
+			syntax_error(" condition. Semicolon, LBRACE, or relop expected");
+		}
+	}
+	else if (t_type == NUM || t_type == REALNUM){
+		con->left_operand = primary();
+		if (t_type == GREATER || t_type == GTEQ || t_type == LESS
+			|| t_type == NOTEQUAL || t_type == LTEQ){
+			con->relop = t_type;
+			con->right_operand = primary();
+			return con;
+		}
+		else{
+			syntax_error("condition. relop expected");
+		}
+	}
+	else{
+		syntax_error("condition. ID, NUM, or REALNUM expected");
+	}
     return NULL;
 }
 
 struct while_stmtNode* while_stmt()
 {
-    // TODO: implement this
+	struct while_stmtNode* whyle;
+	t_type = getToken();
+	if (t_type == WHILE){
+		whyle = ALLOC(struct while_stmtNode);
+		whyle->condition = condition();
+		whyle->body = body();
+		return whyle;
+	}
+	else{
+		syntax_error("while_stmt. WHILE expected");
+	}
     return NULL;
 }
 
@@ -555,6 +676,7 @@ struct exprNode* factor()
         facto->primary = ALLOC(struct primaryNode);
         facto->tag = PRIMARY;
         facto->op = NOOP;
+
         facto->leftOperand = NULL;
         facto->rightOperand = NULL;
         facto->primary->tag = REALNUM;
