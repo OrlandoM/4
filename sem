@@ -18,7 +18,6 @@
 #define KEYWORDS  11
 //#define strdup _strdup
 
-
 typedef enum
 {
     END_OF_FILE = -1, VAR = 1, WHILE, INT, REAL, STRING, BOOLEAN,
@@ -31,6 +30,7 @@ typedef enum
     ERROR
 } token_type;
 
+
 const char *reserved[] = {"",
     "VAR", "WHILE", "INT", "REAL", "STRING", "BOOLEAN",
     "TYPE", "LONG", "DO", "CASE", "SWITCH",
@@ -41,6 +41,10 @@ const char *reserved[] = {"",
     "ID", "NUM", "REALNUM",
     "ERROR"
 };
+
+//Global Array list
+struct sym tList[200];
+struct sym vlist[200];
 
 // Global Variables associated with the next input token
 #define MAX_TOKEN_LENGTH 100
@@ -964,7 +968,7 @@ struct type_nameNode* type_name()
     return NULL; // control never reaches here, this is just for the sake of GCC
 }
 
-struct id_listNode* id_list()
+struct id_listNode* tid_list()
 {
     struct id_listNode* idList;
     
@@ -976,7 +980,7 @@ struct id_listNode* id_list()
         t_type = getToken();
         if (t_type == COMMA)
         {
-            idList->id_list = id_list();
+            idList->id_list = tid_list();
             return idList;
         }
         else if (t_type == COLON)
@@ -998,6 +1002,40 @@ struct id_listNode* id_list()
     return NULL; // control never reaches here, this is just for the sake of GCC
 }
 
+struct id_listNode* vid_list()
+{
+	struct id_listNode* idList;
+
+	idList = ALLOC(struct id_listNode);
+	t_type = getToken();
+	if (t_type == ID)
+	{
+		idList->id = strdup(token);
+		t_type = getToken();
+		if (t_type == COMMA)
+		{
+			idList->id_list = vid_list();
+			return idList;
+		}
+		else if (t_type == COLON)
+		{
+			ungetToken();
+			idList->id_list = NULL;
+			return idList;
+		}
+		else
+		{
+			syntax_error("id_list. COMMA or COLON expected");
+		}
+	}
+	else
+	{
+		syntax_error("id_list. ID expected");
+	}
+	assert(false);
+	return NULL; // control never reaches here, this is just for the sake of GCC
+}
+
 struct type_declNode* type_decl()
 {
     struct type_declNode* typeDecl;
@@ -1007,7 +1045,7 @@ struct type_declNode* type_decl()
     if (t_type == ID)
     {
         ungetToken();
-        typeDecl->id_list = id_list();
+        typeDecl->id_list = tid_list();
         t_type = getToken();
         if (t_type == COLON)
         {
@@ -1044,7 +1082,7 @@ struct var_declNode* var_decl()
     if (t_type == ID)
     {
         ungetToken();
-        varDecl->id_list = id_list();
+        varDecl->id_list = vid_list();
         t_type = getToken();
         if (t_type == COLON)
         {
