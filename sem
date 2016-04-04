@@ -18,7 +18,6 @@
 #define KEYWORDS  11
 //#define strdup _strdup
 
-
 typedef enum
 {
     END_OF_FILE = -1, VAR = 1, WHILE, INT, REAL, STRING, BOOLEAN,
@@ -31,6 +30,7 @@ typedef enum
     ERROR
 } token_type;
 
+
 const char *reserved[] = {"",
     "VAR", "WHILE", "INT", "REAL", "STRING", "BOOLEAN",
     "TYPE", "LONG", "DO", "CASE", "SWITCH",
@@ -42,13 +42,23 @@ const char *reserved[] = {"",
     "ERROR"
 };
 
+//Global Array list
+struct sym* tList[200];
+struct sym* vList[200];
+struct sym* appearance[200];
+
 // Global Variables associated with the next input token
 #define MAX_TOKEN_LENGTH 100
 char token[MAX_TOKEN_LENGTH]; // token string
 token_type t_type; // token type
 bool activeToken = false;
 int tokenLength;
-int line_no = 1;
+int line_no   = 1;
+int typeCount = 0;
+int numofID	  = 0;
+int varCount  = 0;
+int app       = 0;
+
 
 void skipSpace()
 {
@@ -964,8 +974,9 @@ struct type_nameNode* type_name()
     return NULL; // control never reaches here, this is just for the sake of GCC
 }
 
-struct id_listNode* id_list()
+struct id_listNode* tid_list()
 {
+	int i;
     struct id_listNode* idList;
     
     idList = ALLOC(struct id_listNode);
@@ -973,10 +984,34 @@ struct id_listNode* id_list()
     if (t_type == ID)
     {
         idList->id = strdup(token);
+		if (typeCount == 0){//if no typeids have been read in
+			tList[typeCount]->id = idList->id;
+			appearance[app]->id = idList->id;
+			app++;
+			numofID++;
+			typeCount++;
+		}
+		else for (i = 0; i <= typeCount; i++){//checking new typeid against previous typeids and typename
+			if (strcmp(idList->id, tList[i]->id) != 0 ){//if typeid isn't found add to list
+				if (strcmp(atoi(tList[i]->type), atoi(idList->id)) != 0){
+					tList[typeCount]->id = idList->id;
+					appearance[app]->id = idList->id;
+					app++;
+					numofID++;
+					typeCount++;
+				}
+				//else{
+				//	syntax_error("ERROR CODE 1.2 %s", idList->id);
+				//}
+			}
+			//else{
+			//	syntax_error("ERROR CODE 1.1 %s", idList->id);//if typeid found->print error
+			//}
+		}
         t_type = getToken();
         if (t_type == COMMA)
         {
-            idList->id_list = id_list();
+            idList->id_list = tid_list();
             return idList;
         }
         else if (t_type == COLON)
@@ -998,20 +1033,91 @@ struct id_listNode* id_list()
     return NULL; // control never reaches here, this is just for the sake of GCC
 }
 
+struct id_listNode* vid_list()
+{
+	int i;
+	struct id_listNode* idList;
+
+	idList = ALLOC(struct id_listNode);
+	t_type = getToken();
+	if (t_type == ID)
+	{
+		idList->id = strdup(token);
+		if (varCount == 0){//if no variableids have been read in
+			vList[varCount]->id = idList->id;
+			appearance[app]->id = idList->id;
+			app++;
+			numofID++;
+			varCount++;
+		}
+		else for (i = 0; i <= typeCount; i++){//checking new typeid against previous typeids and typename
+			if (strcmp(idList->id, tList[i]->id) != 0){//if typeid isn't found add to list
+				if (strcmp(atoi(idList->id), atoi(tList[i]->type)) != 0){
+					tList[typeCount]->id = idList->id;
+					appearance[app]->id = idList->id;
+					app++;
+					numofID++;
+					typeCount++;
+				}
+				//else{
+				//	syntax_error("ERROR CODE 1.2 %s", idList->id);
+				//}/
+			}
+			//else{
+			//	syntax_error("ERROR CODE 1.1 %s", idList->id);//if typeid found->print error
+			//}
+		}
+		t_type = getToken();
+		if (t_type == COMMA)
+		{
+			idList->id_list = vid_list();
+			return idList;
+		}
+		else if (t_type == COLON)
+		{
+			ungetToken();
+			idList->id_list = NULL;
+			return idList;
+		}
+		else
+		{
+			syntax_error("id_list. COMMA or COLON expected");
+		}
+	}
+	else
+	{
+		syntax_error("id_list. ID expected");
+	}
+	assert(false);
+	return NULL; // control never reaches here, this is just for the sake of GCC
+}
+
 struct type_declNode* type_decl()
 {
+	int j;
+	int i;
     struct type_declNode* typeDecl;
-    
+	
     typeDecl = ALLOC(struct type_declNode);
     t_type = getToken();
     if (t_type == ID)
     {
         ungetToken();
-        typeDecl->id_list = id_list();
+        typeDecl->id_list = tid_list();
         t_type = getToken();
         if (t_type == COLON)
         {
             typeDecl->type_name = type_name();
+			for (j = 0; j <= typeCount; j++){
+				if (strcmp(atoi(tList[j]->id), atoi(typeDecl->type_name)) == 0){
+					typeDecl->type_name->type = tList[j]->type;
+				}
+			}
+			for (i = 0; i <= numofID; i++){
+				tList[typeCount - i]->type = typeDecl->type_name;
+			}
+			numofID = 0;
+
             t_type = getToken();
             if (t_type == SEMICOLON)
             {
@@ -1037,6 +1143,9 @@ struct type_declNode* type_decl()
 
 struct var_declNode* var_decl()
 {
+	int j;
+	int i;
+
     struct var_declNode* varDecl;
     
     varDecl = ALLOC(struct var_declNode);
@@ -1044,11 +1153,21 @@ struct var_declNode* var_decl()
     if (t_type == ID)
     {
         ungetToken();
-        varDecl->id_list = id_list();
+        varDecl->id_list = vid_list();
         t_type = getToken();
         if (t_type == COLON)
         {
             varDecl->type_name = type_name();
+			for (j = 0; j <= typeCount; j++){
+				if (strcmp(tList[j]->id, varDecl->type_name) == 0){
+					varDecl->type_name = tList[j]->type;
+				}
+			}
+			for (i = 0; i <= numofID; i++){
+				vList[varCount - i]->type = varDecl->type_name;
+			}
+			numofID = 0;
+
             t_type = getToken();
             if (t_type == SEMICOLON)
             {
